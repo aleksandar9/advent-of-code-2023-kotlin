@@ -143,6 +143,73 @@ fun main() {
         return grid.count { it.value == '*' }
     }
 
+    fun List<Node>.enrich(): List<Node> {
+        val enrichedGrid = mutableListOf<Node>()
+
+        for (y in 0..this.maxOf(Node::y)) {
+            for (x in 0..this.maxOf(Node::x)) {
+                val node = this.find { it.x == x && it.y == y }
+                print(node!!.value)
+            }
+        }
+
+
+        return enrichedGrid
+    }
+
+    fun part3(input: List<String>): Int {
+        val grid = mutableListOf<Node>()
+        input.forEachIndexed { y, string ->
+            string.forEachIndexed { x, char ->
+                grid.add(Node(x, y, char))
+            }
+        }
+
+        grid.forEach { node ->
+            if (node.value != '.' && node.value != 'I') {
+                node.adjacentNodes.addAll(
+                    node.adjacentNodes(grid)
+                )
+            }
+        }
+
+        val deque = ArrayDeque<Node>()
+        val start = grid.find { it.value == 'S' }!!
+        start.distance = 0
+        deque.addFirst(start)
+
+        while (deque.isNotEmpty()) {
+            val current = deque.removeFirst()
+            current.adjacentNodes.forEach {
+                if (it.distance == null) {
+                    it.distance = current.distance!! + 1
+                    deque.addLast(it)
+                }
+            }
+        }
+
+        grid.forEach {
+            if (it.distance == null && it.value != '.') {
+                it.value = 'O'
+            }
+        }
+
+        val enrichedGrid = grid.enrich()
+
+        for (y in 0 until input.size) {
+            for (x in 0 until input[0].count()) {
+                val node = grid.find { it.x == x && it.y == y }
+                print(node!!.value)
+            }
+            println()
+        }
+
+        println("Stars (*) = ${grid.count { it.value == '*' }}")
+        println("Zeros (O) = ${grid.count { it.value == 'O' }}")
+
+        return grid.count { it.value == '*' }
+    }
+
     // test if implementation meets criteria from the description, like:
     val testInput = readInput(pkg = "day10", name = "Day10_test")
     val testInput2 = readInput(pkg = "day10", name = "Day10_test2")
