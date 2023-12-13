@@ -10,6 +10,7 @@ fun main() {
         var value: Char,
         val adjacentNodes: MutableList<Node> = mutableListOf(),
         var distance: Int? = null,
+        var isStart: Boolean = false,
     ) {
 
         fun canGoLeft(): Boolean = this.value == '-' || this.value == 'F' || this.value == 'L'
@@ -39,6 +40,26 @@ fun main() {
             else -> emptyList()
         }
 
+        if (this.value == 'S') {
+            this.isStart = true
+            val startingValue = if (up != null && down != null) {
+                '|'
+            } else if (left != null && right != null) {
+                '-'
+            } else if (right != null && up != null) {
+                'L'
+            } else if (up != null && left != null) {
+                'J'
+            } else if (left != null && down != null) {
+                '7'
+            } else if (down != null && right != null) {
+                'F'
+            } else {
+                '.'
+            }
+            this.value = startingValue
+        }
+
         return adjacentNodes.filterNotNull()
     }
 
@@ -59,7 +80,7 @@ fun main() {
         }
 
         val deque = ArrayDeque<Node>()
-        val start = grid.find { it.value == 'S' }!!
+        val start = grid.find { it.isStart }!!
         start.distance = 0
         deque.addFirst(start)
 
@@ -143,16 +164,101 @@ fun main() {
         return grid.count { it.value == '*' }
     }
 
+    fun Node.isInside(grid: List<Node>) {
+        val verticalChars = listOf('|')
+        val horizontalChars = listOf('-')
+        val left = grid.filter { it.x < this.x && it.y == this.y && it.value in verticalChars }
+        val right = grid.filter { it.x > this.x && it.y == this.y && it.value in verticalChars }
+        val up = grid.filter { it.x == this.x && it.y < this.y && it.value in horizontalChars }
+        val down = grid.filter { it.x == this.x && it.y > this.y && it.value in horizontalChars }
+        if (left.count() % 2 == 0 && right.count() % 2 == 0 && up.count() % 2 == 0 && down.count() % 2 == 0) {
+            this.value = 'O'
+        } else {
+            this.value = '*'
+        }
+    }
+
     fun List<Node>.enrich(): List<Node> {
         val enrichedGrid = mutableListOf<Node>()
+        val enrichedChars: MutableList<MutableList<Char>> = mutableListOf<MutableList<Char>>()
 
         for (y in 0..this.maxOf(Node::y)) {
+            enrichedChars.add(mutableListOf())
+            enrichedChars.add(mutableListOf())
+            enrichedChars.add(mutableListOf())
             for (x in 0..this.maxOf(Node::x)) {
-                val node = this.find { it.x == x && it.y == y }
-                print(node!!.value)
+                val node = this.find { it.x == x && it.y == y }!!
+                val index = enrichedChars.size
+                if (node.distance != null) {
+                    when (node.value) {
+                        '-' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', ' ', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf('-', '-', '-'))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', ' ', ' '))
+                        }
+
+                        '|' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', '|', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf(' ', '|', ' '))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', '|', ' '))
+                        }
+
+                        'L' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', '|', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf(' ', 'L', '-'))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', ' ', ' '))
+                        }
+
+                        'J' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', '|', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf('-', 'J', ' '))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', ' ', ' '))
+                        }
+
+                        '7' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', ' ', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf('-', '7', ' '))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', '|', ' '))
+                        }
+
+                        'F' -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', ' ', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf(' ', 'F', '-'))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', '|', ' '))
+                        }
+
+                        else -> {
+                            enrichedChars[index - 3].addAll(arrayOf(' ', ' ', ' '))
+                            enrichedChars[index - 2].addAll(arrayOf(' ', ' ', ' '))
+                            enrichedChars[index - 1].addAll(arrayOf(' ', '.', ' '))
+                        }
+                    }
+                } else {
+                    enrichedChars[index - 3].addAll(arrayOf(' ', ' ', ' '))
+                    enrichedChars[index - 2].addAll(arrayOf(' ', ' ', ' '))
+                    enrichedChars[index - 1].addAll(arrayOf(' ', '.', ' '))
+                }
             }
         }
 
+        for (x in 0 until enrichedChars.size) {
+            for (y in 0 until enrichedChars[0].size) {
+                enrichedGrid.add(Node(y, x, enrichedChars[x][y]))
+            }
+        }
+
+        enrichedGrid.forEach {
+            if (it.value == '.') {
+                it.isInside(enrichedGrid)
+            }
+        }
+
+        for (y in 0 until enrichedGrid.maxOf(Node::y)) {
+            for (x in 0 until enrichedGrid.maxOf(Node::x)) {
+                print(enrichedGrid.find { it.x == x && it.y == y }!!.value)
+            }
+            println()
+        }
 
         return enrichedGrid
     }
@@ -166,7 +272,7 @@ fun main() {
         }
 
         grid.forEach { node ->
-            if (node.value != '.' && node.value != 'I') {
+            if (node.value != '.') {
                 node.adjacentNodes.addAll(
                     node.adjacentNodes(grid)
                 )
@@ -174,7 +280,7 @@ fun main() {
         }
 
         val deque = ArrayDeque<Node>()
-        val start = grid.find { it.value == 'S' }!!
+        val start = grid.find { it.isStart }!!
         start.distance = 0
         deque.addFirst(start)
 
@@ -188,35 +294,35 @@ fun main() {
             }
         }
 
-        grid.forEach {
-            if (it.distance == null && it.value != '.') {
-                it.value = 'O'
-            }
-        }
-
         val enrichedGrid = grid.enrich()
+//        enrichedGrid.forEach {
+//            if (it.value == '.') {
+//                it.isInside(enrichedGrid)
+//            }
+//        }
 
-        for (y in 0 until input.size) {
-            for (x in 0 until input[0].count()) {
-                val node = grid.find { it.x == x && it.y == y }
-                print(node!!.value)
-            }
-            println()
-        }
+//        for (x in 2 until enrichedGrid.maxOf(Node::x) step 3) {
+//            for (y in 2 until enrichedGrid.maxOf(Node::y) step 3) {
+//                val node = enrichedGrid.find { it.x == x && it.y == y }!!
+//                if (node.value == '.') {
+//                    node.isInside(enrichedGrid)
+//                }
+//            }
+//        }
 
-        println("Stars (*) = ${grid.count { it.value == '*' }}")
-        println("Zeros (O) = ${grid.count { it.value == 'O' }}")
+        val starsCount = enrichedGrid.count { it.value == '*' }
 
-        return grid.count { it.value == '*' }
+        return starsCount
     }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput(pkg = "day10", name = "Day10_test")
     val testInput2 = readInput(pkg = "day10", name = "Day10_test2")
     check(part1(testInput) == 8)
-    check(part2(testInput2) == 1)
+    //check(part2(testInput2) == 1)
+    check(part3(testInput2) == 4)
 
     val input = readInput(pkg = "day10", name = "Day10")
     println(part1(input))
-    println(part2(input))
+    println(part3(input))
 }
